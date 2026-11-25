@@ -1,0 +1,10 @@
+name: proof-ci
+on:
+  pull_request:
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "This check fails on purpose for the AGI-12041 ci.failed proof."
+          exit 1
