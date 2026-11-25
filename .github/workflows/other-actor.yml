@@ -1,0 +1,37 @@
+name: other-actor
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: "involve | review-pr"
+        required: true
+      pr:
+        description: "PR number for review-pr"
+        required: false
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+jobs:
+  act:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      R: ${{ github.repository }}
+    steps:
+      - if: inputs.step == 'involve'
+        run: |
+          set -eux
+          n=$(gh api repos/$R/issues -f title="Bot assigns and mentions you" -f body="Hey @aaronmeslin1, can you look at this?" -q .number)
+          gh api repos/$R/issues/$n/assignees -X POST -f 'assignees[]=aaronmeslin1'
+          gh api repos/$R/issues/$n/comments -f body="Following up, @aaronmeslin1."
+          sha=$(gh api repos/$R/git/ref/heads/main -q .object.sha)
+          b="bot-pr-$(date +%s)"
+          gh api repos/$R/git/refs -f ref="refs/heads/$b" -f sha="$sha"
+          gh api -X PUT repos/$R/contents/bot-$b.txt -f message="bot change" -f content="$(printf 'bot' | base64)" -f branch="$b"
+          p=$(gh api repos/$R/pulls -f title="Bot PR needing your review" -f head="$b" -f base=main -f body="Please review" -q .number)
+          gh api repos/$R/pulls/$p/requested_reviewers -f 'reviewers[]=aaronmeslin1'
+      - if: inputs.step == 'review-pr'
+        run: |
+          set -eux
+          gh api repos/$R/pulls/${{ inputs.pr }}/reviews -f event=COMMENT -f body="Bot review: looks fine, one nit."
